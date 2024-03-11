@@ -40,7 +40,6 @@ jobs:
       - name: Install NPM dependencies
         run: |
           npm i
-          npm run build
 
       - name: Install the MySQL client
         run: |

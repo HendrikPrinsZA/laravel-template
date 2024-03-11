@@ -10,6 +10,7 @@ composer install
 
 # experimenting
 echo "Serving Laravel..."
+npm run build
 nohup php artisan serve &
 
 php artisan key:generate
