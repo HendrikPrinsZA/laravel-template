@@ -19,8 +19,6 @@ parents=(
 )
 
 for parent in "${parents[@]}"; do
-    echo "Checking: $parent"
-    ls -la $parent
     if [ -f "$parent/.env.example" ]; then
         PATH_TO_REPO="$parent"
         break
