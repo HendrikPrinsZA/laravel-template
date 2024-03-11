@@ -100,14 +100,6 @@ jobs:
       - name: Restart environment
         run: npm run restart -- --verbose
 
-      # - name: Install dependencies
-      #   run: composer install --prefer-dist
-
-      # - name: Run migrations
-      #   run: |
-      #     php artisan migrate:fresh --seed --force
-      #     php artisan migrate:fresh --env="testing" --database="testing" --seed --force
-
       - name: Run Pest
         run: ./bin/tests/parallel
         env:
@@ -117,8 +109,6 @@ jobs:
           DB_PORT: "33306"
           DB_USERNAME: sail
           DB_PASSWORD: password
-          # DB_DATABASE: laravel_${{ matrix.ci_node_index }}
-          # DB_TEST_DATABASE: laravel_test_${{ matrix.ci_node_index }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
