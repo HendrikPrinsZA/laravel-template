@@ -13,7 +13,7 @@ class PeopleRobotsSeeder extends Seeder
         Person::query()->upsert([
             'name' => 'Robot A',
             'type' => PersonType::ROBOT->value,
-            'email' => config('spambot.username'),
+            'email' => config('spambot.username', 'robot-a@fake.com'),
         ], ['email'], ['name', 'type', 'email']);
     }
 }
