@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+: '# CI Database Script
+
+This script is used to backup, restore, or reset a database.
+'
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Standard header
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+SCRIPT_DIR="$(
+    cd -- "$(dirname "$0")" >/dev/null 2>&1
+    pwd -P
+)"
+PATH_TO_BOOTSTRAP="$SCRIPT_DIR/lib/bootstrap.sh"
+
+# Check if the included script exists and is executable, then execute it
+if [ -x "$PATH_TO_BOOTSTRAP" ]; then
+    . "$PATH_TO_BOOTSTRAP"
+else
+    echo "Included script '$PATH_TO_BOOTSTRAP' not found or not executable"
+    exit 1
+fi
+
+# Some aliases
+ALIAS_MYSQLDUMP="mysqldump"
+ALIAS_MYSQL="mysql"
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Handle input
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+INPUT_ARGS="$@"
+INPUT_RUN_ID=""
+INPUT_ACTION=""
+INPUT_DATABASE_NAME=""
+INPUT_DB_RESET_DELETE_DUMP=false
+INPUT_VERBOSE=false
+
+# Function to display usage
+usage() {
+    echo "
+CI database script
+
+Usage: $0 --action=<value> --database=<value> --run-id=<value> [OPTIONS]
+  --action=<value>        The action
+  --database=<value>      Set the database name
+  --run-id=<value>        The run id
+
+Optional:
+  --on-reset-delete-dump  Delete the database dump on reset (optional)
+  --verbose               Verbose output (optional)
+
+Examples:
+  $0 --action=backup  --database=example --run-id=123
+  $0 --action=restore --database=example --run-id=123
+  $0 --action=reset   --database=example --run-id=123 --on-reset-delete-dump
+"
+    exit 1
+}
+
+# Parse command-line arguments
+while [ "$1" != "" ]; do
+    case $1 in
+    --action=*)
+        INPUT_ACTION="${1#*=}"
+        ;;
+    --database=*)
+        INPUT_DATABASE_NAME="${1#*=}"
+        ;;
+    --run-id=*)
+        INPUT_RUN_ID="${1#*=}"
+        ;;
+    --on-reset-delete-dump)
+        INPUT_DB_RESET_DELETE_DUMP=true
+        ;;
+    --verbose)
+        INPUT_VERBOSE=true
+        ;;
+    *)
+        echo "Error: Invalid option $1"
+        usage
+        ;;
+    esac
+    shift
+done
+
+# Check the required params
+if [ -z "$INPUT_ACTION" ]; then
+    echo "Command failed: $0 $INPUT_ARGS"
+    echo "Reason: --action option is required"
+    usage
+fi
+
+if [ -z "$INPUT_DATABASE_NAME" ]; then
+    echo "Command failed: $0 $INPUT_ARGS"
+    echo "Reason: --database option is required"
+    usage
+fi
+
+if [ -z "$INPUT_RUN_ID" ]; then
+    echo "Command failed: $0 $INPUT_ARGS"
+    echo "Reason: --run-id option is required"
+    usage
+fi
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Some helpers
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+report_message() {
+    context="input_database_name=$INPUT_DATABASE_NAME $2"
+    logbook_append "$INPUT_RUN_ID" "$1" "$context"
+
+    if [ "$INPUT_VERBOSE" = true ]; then
+        echo -e "$1" "$2"
+    fi
+
+    # Catch some potential hints
+    combined="$1 $2"
+
+    # - ERROR 2005 (HY000): Unknown MySQL server host 'mysql' (8)
+    if [[ $combined == *"Unknown MySQL server host 'mysql'"* ]]; then
+        passthrough_args="$INPUT_ARGS"
+        passthrough_args=$(echo "$INPUT_ARGS" | sed -E 's/ +/" "/g; s/^/"/; s/$/"/')
+
+        # Possible issue between OSX/Unix/Windows with sed -E
+        # passthrough_args=$(echo "$passthrough_args" | sed 's/\s\+/" "/g; s/^/"/; s/$/"/')
+
+        echo -e "\n(i) Hint: If you are trying to run it locally use:\n./vendor/bin/sail bash $0 $passthrough_args"
+    fi
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Script logic
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+PATH_TO_DUMP_DIR="$PATH_TO_REPO/database/dumps/tests"
+PATH_TO_DUMP="$PATH_TO_DUMP_DIR/$INPUT_DATABASE_NAME-dump.sql"
+PATH_TO_DUMP_SEEDED="$PATH_TO_DUMP_DIR/$INPUT_DATABASE_NAME-dump-seeded.sql"
+
+# Ensure the dump directory exists
+if [ ! -d "$PATH_TO_DUMP_DIR" ]; then
+    mkdir -p $PATH_TO_DUMP_DIR
+fi
+
+report_message "Database $INPUT_ACTION"
+
+alias_mysqldump="$ALIAS_MYSQLDUMP --host=$DB_HOST --port=$DB_PORT --user=root --databases $INPUT_DATABASE_NAME"
+alias_mysql="$ALIAS_MYSQL --host=$DB_HOST --port=$DB_PORT --user=root"
+
+if [ "$INPUT_ACTION" == "backup" ]; then
+    if [ $(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysql -e "SHOW TABLES" $INPUT_DATABASE_NAME | wc -l) -eq 0 ]; then
+        report_message "Database backup skipped, database is empty"
+        exit 0
+    fi
+
+    error_response=$(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysqldump --add-drop-database --skip-add-drop-table 2>&1 >$PATH_TO_DUMP)
+    if [ $? -ne 0 ]; then
+        report_message "Database backup failed\n$error_response"
+        exit 1
+    fi
+
+    report_message "Database backup successful"
+    exit 0
+fi
+
+if [ "$INPUT_ACTION" == "backup-seeded" ]; then
+    if [ $(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysql -e "SHOW TABLES" $INPUT_DATABASE_NAME | wc -l) -eq 0 ]; then
+        report_message "Database backup skipped, database is empty"
+        exit 0
+    fi
+
+    error_response=$(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysqldump --add-drop-database --skip-add-drop-table 2>&1 >$PATH_TO_DUMP_SEEDED)
+    if [ $? -ne 0 ]; then
+        report_message "Database backup failed\n$error_response"
+        exit 1
+    fi
+
+    report_message "Database backup successful"
+    exit 0
+fi
+
+if [ "$INPUT_ACTION" == "restore" ]; then
+    if [ ! -f "$PATH_TO_DUMP" ]; then
+        report_message "Database restore failed, dump doesn't exist $PATH_TO_DUMP"
+        exit 1
+    fi
+
+    error_response=$(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysql $INPUT_DATABASE_NAME 2>&1 <$PATH_TO_DUMP)
+    if [ $? -ne 0 ]; then
+        report_message "Database restore failed\n$error_response"
+        exit 1
+    fi
+
+    report_message "Database restore successful"
+    exit 0
+fi
+
+if [ "$INPUT_ACTION" == "restore-seeded" ]; then
+    if [ ! -f "$PATH_TO_DUMP_SEEDED" ]; then
+        report_message "Database restore failed, dump doesn't exist $PATH_TO_DUMP_SEEDED"
+        exit 1
+    fi
+
+    error_response=$(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysql $INPUT_DATABASE_NAME 2>&1 <$PATH_TO_DUMP_SEEDED)
+    if [ $? -ne 0 ]; then
+        report_message "Database restore failed\n$error_response"
+        exit 1
+    fi
+
+    report_message "Database restore successful"
+    exit 0
+fi
+
+if [ "$INPUT_ACTION" == "reset" ]; then
+    error_response=$(MYSQL_PWD="$DB_ROOT_PASSWORD" $alias_mysql -e "DROP DATABASE IF EXISTS $INPUT_DATABASE_NAME; CREATE DATABASE $INPUT_DATABASE_NAME;" 2>&1)
+    if [ $? -ne 0 ]; then
+        report_message "Database reset failed\n$error_response"
+        exit 1
+    fi
+
+    if [ "$INPUT_DB_RESET_DELETE_DUMP" = true ]; then
+        if [ -f "$PATH_TO_DUMP" ]; then
+            rm -f $PATH_TO_DUMP
+            report_message "Database dump removed from $PATH_TO_DUMP"
+        fi
+    fi
+
+    report_message "Database reset successful"
+    exit 0
+fi
+
+echo "Error: Invalid action ($INPUT_ACTION), expected 'backup', 'restore', or 'reset'"
+exit 1

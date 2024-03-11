@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+: '# Bash bootstrap script
+
+Should be included in all bash scripts for consistency
+'
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Standard header
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+SELF="$0"
+SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
+parents=(
+    "$SCRIPT_DIR"
+    "$SCRIPT_DIR/.."
+    "$SCRIPT_DIR/../.."
+    "$SCRIPT_DIR/../../.."
+)
+
+for parent in "${parents[@]}"; do
+    if [ -f "$parent/.env.example" ]; then
+        PATH_TO_REPO="$parent"
+        break
+    fi
+done
+
+if [ -z "$PATH_TO_REPO" ]; then
+    echo "Error: .env file not found"
+    exit 1
+fi
+
+source $PATH_TO_REPO/.env
+
+if [ -z "$DB_HOST" ]; then
+    echo "Error: DB_HOST not set"
+    exit 1
+fi
+
+if [ -z "$CI_MODE" ]; then
+    echo "Error: CI_MODE not set"
+    exit 1
+fi
