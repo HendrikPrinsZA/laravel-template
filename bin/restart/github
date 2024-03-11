@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+echo "Running in GithHub Actions"
+
+. ./bin/shared/headers
+
+composer install
+MYSQL_PWD="$DB_PASSWORD" mysql --host="$DB_HOST" --user="root" --port="$DB_PORT" -e "DROP DATABASE IF EXISTS $DB_DATABASE; CREATE DATABASE $DB_DATABASE;"
+MYSQL_PWD="$DB_PASSWORD" mysql --host="$DB_HOST" --user="root" --port="$DB_PORT" -e "DROP DATABASE IF EXISTS $DB_TEST_DATABASE; CREATE DATABASE $DB_TEST_DATABASE;"
+MYSQL_PWD="$DB_PASSWORD" mysql --host="$DB_HOST" --user="root" --port="$DB_PORT" -e "GRANT ALL PRIVILEGES ON *.* TO 'sail'@'%'; FLUSH PRIVILEGES;"
+
+# experimenting
+echo "Serving Laravel..."
+nohup php artisan serve &
+
+php artisan key:generate
+php artisan migrate:fresh --seed --no-interaction --force
+php artisan migrate:fresh --env=testing --database=$DB_TEST_DATABASE --seed --force --no-interaction

@@ -1,0 +1,51 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "prepare": "husky",
+    "restart": "./bin/ci restart",
+    "test": "docker exec -it me-laravel ./bin/tests/parallel --sequential"
+  },
+  "devDependencies": {
+    "@inertiajs/vue3": "^1.0.0",
+    "@tailwindcss/forms": "^0.5.3",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "autoprefixer": "^10.4.12",
+    "axios": "^1.6.4",
+    "chokidar": "^3.6.0",
+    "husky": "^9.0.11",
+    "laravel-echo": "^1.16.0",
+    "laravel-vite-plugin": "^1.0",
+    "postcss": "^8.4.31",
+    "pusher-js": "^8.4.0-rc2",
+    "tailwindcss": "^3.2.1",
+    "vite": "^5.0",
+    "vue": "^3.4.0"
+  },
+  "optionalDependencies": {
+    "@esbuild/android-arm": "^0.20.1",
+    "@esbuild/linux-loong64": "^0.20.1",
+    "esbuild-android-64": "^0.20.1",
+    "esbuild-android-arm64": "^0.20.1",
+    "esbuild-darwin-64": "^0.20.1",
+    "esbuild-darwin-arm64": "^0.20.1",
+    "esbuild-freebsd-64": "^0.20.1",
+    "esbuild-freebsd-arm64": "^0.20.1",
+    "esbuild-linux-32": "^0.20.1",
+    "esbuild-linux-64": "^0.20.1",
+    "esbuild-linux-arm": "^0.20.1",
+    "esbuild-linux-arm64": "^0.20.1",
+    "esbuild-linux-mips64le": "^0.20.1",
+    "esbuild-linux-ppc64le": "^0.20.1",
+    "esbuild-linux-riscv64": "^0.20.1",
+    "esbuild-linux-s390x": "^0.20.1",
+    "esbuild-netbsd-64": "^0.20.1",
+    "esbuild-openbsd-64": "^0.20.1",
+    "esbuild-sunos-64": "^0.20.1",
+    "esbuild-windows-32": "^0.20.1",
+    "esbuild-windows-64": "^0.20.1",
+    "esbuild-windows-arm64": "^0.20.1"
+  }
+}

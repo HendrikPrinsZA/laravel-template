@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+echo "Running in Forge"
+
+echo "Working on branch: $FORGE_SITE_BRANCH"
+
+# Restrict this site to specific branch
+if [ "$FORGE_SITE_BRANCH" != "main" ]; then
+    echo "Invalid deployment branch of $FORGE_SITE_BRANCH, only main allowed"
+    exit 1
+fi
+
+cd $FORGE_SITE_PATH
+git pull origin $FORGE_SITE_BRANCH
+
+if [[ $FORGE_MANUAL_DEPLOY -eq 1 ]]; then
+    echo "This deploy was triggered manually."
+else
+    echo "This deploy was triggered automatically."
+fi
+
+# Install composer dependencies
+$FORGE_COMPOSER install \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-dev
+
+if [ ! -f artisan ]; then
+    echo "Error: expected artisan file missing"
+    exit 1
+fi
+
+# Migrations & queues
+$FORGE_PHP artisan migrate --force
+$FORGE_PHP artisan schedule-monitor:sync
+$FORGE_PHP artisan queue:restart
+
+# Clear the application cache
+$FORGE_PHP artisan optimize:clear
+$FORGE_PHP artisan auth:clear-resets
+
+# Generate the application cache
+$FORGE_PHP artisan optimize
+
+( flock -w 10 9 || exit 1
+    echo 'Restarting FPM...'; sudo -S service $FORGE_PHP_FPM reload ) 9>/tmp/fpmlock
+
+# Terminate the master supervisor so it can be restarted
+$FORGE_PHP artisan horizon:terminate

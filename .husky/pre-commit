@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Skipped for now, not compatible with Laravel 11
+# echo "Linting"
+# ./vendor/bin/sail php ./vendor/bin/tlint format  --diff
+
+echo "Pinting"
+./vendor/bin/sail php ./vendor/bin/pint -v --dirty
+
+if [[ $(git diff --stat) != '' ]]; then
+  printf "\n${RED}Exception: Dirty files found, check and commit again!${NC}\n"
+  exit 1
+fi

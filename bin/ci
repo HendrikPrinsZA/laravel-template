@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+: '# Laravel CI script
+
+Control the CI environment for Laravel in different CD environments
+'
+
+# Includes
+. ./bin/shared/headers
+. ./bin/shared/arguments
+
+# Check the required params
+if [ -z "$INPUT_MODE" ]; then
+    echo "Command failed: $SELF $INPUT_ARGS"
+    echo "Reason: Expected mode not found (restart|database)"
+    usage
+fi
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Script logic
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ -z "$CI_MODE" ]; then
+    CI_MODE="sail"
+    echo "Error: CI_MODE not set, expected one of (local, sail, github, circleci)"
+    exit 1
+fi
+
+target_file="./bin/$INPUT_MODE/$CI_MODE"
+if [ ! -f $target_file ]; then
+    echo "Error: Invalid action '$target_file'"
+    exit 1
+fi
+
+if [ ! -x $target_file ]; then
+    echo "Error: File not executable '$target_file'"
+    exit 1
+fi
+
+$target_file $INPUT_ARGS
