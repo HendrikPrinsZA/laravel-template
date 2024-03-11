@@ -94,8 +94,8 @@ jobs:
       - name: Copy .env
         run: |
           cp .env.example .env
-          echo -e "\n# Circle CI" >> .env
-          cat .env.circleci >> .env
+          echo -e "\n# GitHub CI" >> .env
+          cat .env.github >> .env
 
       - name: Restart environment
         run: npm run restart -- --verbose
