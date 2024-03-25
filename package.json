@@ -12,7 +12,7 @@
     "@inertiajs/vue3": "^1.0.0",
     "@tailwindcss/forms": "^0.5.3",
     "@vitejs/plugin-vue": "^5.0.0",
-    "autoprefixer": "^10.4.12",
+    "autoprefixer": "^10.4.19",
     "axios": "^1.6.4",
     "chokidar": "^3.6.0",
     "husky": "^9.0.11",
